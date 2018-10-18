@@ -1,0 +1,71 @@
+version: '2.1'
+
+services:
+  mysql-export:
+    image: prom/mysqld-exporter:v0.11.0 
+    container_name: mysql-export
+    user: root
+    privileged: true
+    restart: unless-stopped
+    ports:
+      - 9104:9104
+    network_mode: host 
+    labels:
+      org.label-schema.group: "monitoring"
+    env_file:
+      - .env
+
+  node-exporter:
+    image: prom/node-exporter:v0.15.0
+    container_name: node-exporter
+    user: root
+    privileged: true
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    ports:
+      - 9100:9100
+    labels:
+      org.label-schema.group: "monitoring"
+
+  node-nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:0.1.0
+    container_name: nginx-node-exporter
+    user: root
+    privileged: true
+    command:
+      - -nginx.scrape-uri=http://localhost:8085/stat/
+    restart: unless-stopped
+    ports:
+      - 9113:9113
+    network_mode: host 
+    labels:
+      org.label-schema.group: "monitoring"
+
+  cadvisor:
+    image: google/cadvisor:v0.28.3
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /cgroup:/cgroup:ro
+    expose:
+      - 8080
+    restart: unless-stopped
+    networks:
+      - exporters
+    labels:
+      org.label-schema.group: "monitoring"
+
+
+networks:
+    exporters:
+        external: true
